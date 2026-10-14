@@ -1,5 +1,1 @@
-var tar = 1; // hi
-
-def hello (){
-
-}
+1 + 2 * 4
