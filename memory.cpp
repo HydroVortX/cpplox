@@ -1,8 +1,9 @@
 #include <cstdlib>
 
 #include "include/memory.h"
+#include "include/vm.h"
 
-void* reallocate(void* pointer, size_t oldSize, size_t newSize){
+void* reallocate(void* pointer, std::size_t oldSize, std::size_t newSize){
     if(newSize == 0){
         std::free(pointer);
         return nullptr;
@@ -11,4 +12,24 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize){
     void* result = std::realloc(pointer, newSize);
     if(result == nullptr) std::exit(1);
     return result;
+}
+
+static void freeObject(Obj* object){
+    switch(object->type){
+        case OBJ_STRING: {
+            ObjString* string = static_cast<ObjString*>(object);
+            FREE_ARRAY(char, string->chars, string->length + 1);
+            FREE(ObjString, object);
+            break;
+        }
+    }
+}
+
+void freeObjects(){
+    Obj* object = vm.objects;
+    while(object != nullptr){
+        Obj* next = object->next;
+        freeObject(object);
+        object = next;
+    }
 }

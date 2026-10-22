@@ -14,18 +14,18 @@ void initChunk(Chunk* chunk){
 }
 
 void freeChunk(Chunk* chunk){
-    FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
+    FREE_ARRAY(std::uint8_t, chunk->code, chunk->capacity);
     // FREE_ARRAY(int, chunk->lines, chunk->capacity);
     FREE_ARRAY(LineRLE, chunk->lines, chunk->lineCapacity);
     freeValueArray(&chunk->constants);
     initChunk(chunk);
 }
 
-void writeChunk(Chunk* chunk, uint8_t byte, int line){
+void writeChunk(Chunk* chunk, std::uint8_t byte, int line){
     if(chunk->capacity < chunk->count + 1){
         int oldCapacity = chunk->capacity;
         chunk->capacity = GROW_CAPACITY(oldCapacity);
-        chunk->code = GROW_ARRAY(uint8_t, chunk->code, oldCapacity, chunk->capacity);
+        chunk->code = GROW_ARRAY(std::uint8_t, chunk->code, oldCapacity, chunk->capacity);
         // chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
     }
 
@@ -59,7 +59,7 @@ void writeConstant(Chunk* chunk, Value value, int line){
     if(index < 256) {
         // add normal size constant
         writeChunk(chunk, OP_CONSTANT, line);
-        writeChunk(chunk, static_cast<uint8_t>(index), line);
+        writeChunk(chunk, static_cast<std::uint8_t>(index), line);
     } else {
         // add 24 bit constant
         writeChunk(chunk, OP_CONSTANT_LONG, line); // operator

@@ -6,11 +6,12 @@
 
 struct VM {
     Chunk* chunk;
-    uint8_t* ip;
+    std::uint8_t* ip;
     int stackCapacity;
     int stackCount;
     Value* stack;
     Value* stackTop;
+    Obj* objects;
 };
 
 enum interpretResult {
@@ -18,6 +19,8 @@ enum interpretResult {
     INTERPRET_COMPILE_ERROR,
     INTERPRET_RUNTIME_ERROR,
 };
+
+extern VM vm;
 
 void initVM();
 void freeVM();

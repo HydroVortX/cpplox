@@ -174,7 +174,7 @@ Token Scanner::scanToken(){
         case '-':
             if(match('-')) return makeToken(TOKEN_MINUS_MINUS);
             if(match('=')) return makeToken(TOKEN_MINUS_EQUAL);
-            return makeToken(TOKEN_PLUS);
+            return makeToken(TOKEN_MINUS);
         case '+':
             if(match('+')) return makeToken(TOKEN_PLUS_PLUS);
             if(match('=')) return makeToken(TOKEN_PLUS_EQUAL);
@@ -182,7 +182,7 @@ Token Scanner::scanToken(){
         case '/': return makeToken(
                 match('=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
         case '*': return makeToken(
-                match('=') ? TOKEN_STAR_EQUAL : TOKEN_SLASH);
+                match('=') ? TOKEN_STAR_EQUAL : TOKEN_STAR);
         case '!':
             return makeToken(
                 match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);

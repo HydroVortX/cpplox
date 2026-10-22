@@ -31,7 +31,7 @@ static char* readFile(const char* path){
     std::size_t fileSize = file.tellg();
     file.seekg(0, file.beg);
 
-    char* buffer = new char[ fileSize + 1];
+    char* buffer = new char[fileSize + 1];
     if(buffer == nullptr){
         std::cerr << "Not enough memory to read \"" << path << "\".\n";
         delete[] buffer;
@@ -47,19 +47,6 @@ static char* readFile(const char* path){
     buffer[fileSize] = '\0';
 
     return buffer;
-
-
-    // std::FILE* file = std::fopen(path, "rb");
-    // std::fseek(file, 0L, SEEK_END);
-    // std::size_t filesize = std::ftell(file);
-    // rewind(file);
-
-    // char* buffer = (char*)std::malloc(filesize + 1);
-    // std::size_t bytesRead = std::fread(buffer, sizeof(char), filesize, file);
-    // buffer[bytesRead] = '\0';
-
-    // std::fclose(file);
-    // return buffer;   
 }
 
 static void runFile(const char* path){
@@ -67,8 +54,8 @@ static void runFile(const char* path){
     interpretResult result = interpret(source);
     delete[] source;
 
-    if(result == INTERPRET_COMPILE_ERROR) exit(65);
-    if(result == INTERPRET_RUNTIME_ERROR) exit(70);
+    if(result == INTERPRET_COMPILE_ERROR) std::exit(65);
+    if(result == INTERPRET_RUNTIME_ERROR) std::exit(70);
 }
 
 int main(int argc, const char* argv[]) {
@@ -85,30 +72,4 @@ int main(int argc, const char* argv[]) {
 
     freeVM();
     return 0;
-
-    // Chunk chunk;
-    // initChunk(&chunk);
-
-    // writeConstant(&chunk, 1.5, 122);
-    // writeConstant(&chunk, 2.5, 122);
-    // writeChunk(&chunk, OP_NEGATE, 122);
-    // writeChunk(&chunk, OP_ADD, 122);
-    // writeConstant(&chunk, 3.0, 122);
-    // writeChunk(&chunk, OP_MULTIPLY, 122);
-
-    // for(int i = 0; i < 300; i++){
-    //     if(i < 255){
-    //         writeConstant(&chunk, (double)i, 127);
-    //     } else {
-    //         writeConstant(&chunk, (double)i, 126);
-    //     }
-    // }
-
-    // writeConstant(&chunk, 1.2, 128);
-    // writeChunk(&chunk, OP_ADD, 129);
-
-    // writeChunk(&chunk, OP_RETURN, 128);
-
-    // disassembleChunk(&chunk, "test chunk");
-    // interpret(&chunk);
 }

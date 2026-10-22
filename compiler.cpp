@@ -92,11 +92,11 @@ static void consume(TokenType type, const char* message){
     errorAtCurrent(message);
 }
 
-static void emitByte(uint8_t byte){
+static void emitByte(std::uint8_t byte){
     writeChunk(currentChunk(), byte, parser.previous.line);
 }
 
-static void emitBytes(uint8_t byte1, uint8_t byte2){
+static void emitBytes(std::uint8_t byte1, std::uint8_t byte2){
     emitByte(byte1);
     emitByte(byte2);
 }
@@ -132,10 +132,25 @@ static void binary(){
     parsePrecedence(static_cast<Precedence>(rule.precedence + 1));
 
     switch(operatorType){
-        case TOKEN_PLUS: emitByte(OP_ADD); break;
-        case TOKEN_MINUS: emitByte(OP_SUBTRACT); break;
-        case TOKEN_STAR: emitByte(OP_MULTIPLY); break;
-        case TOKEN_SLASH: emitByte(OP_DIVIDE); break;
+        case TOKEN_BANG_EQUAL:    emitBytes(OP_EQUAL, OP_NOT); break;
+        case TOKEN_EQUAL_EQUAL:   emitByte(OP_EQUAL); break;
+        case TOKEN_GREATER:       emitByte(OP_GREATER); break;
+        case TOKEN_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); break;
+        case TOKEN_LESS:          emitByte(OP_LESS); break;
+        case TOKEN_LESS_EQUAL:    emitBytes(OP_GREATER, OP_NOT); break;
+        case TOKEN_PLUS:          emitByte(OP_ADD); break;
+        case TOKEN_MINUS:         emitByte(OP_SUBTRACT); break;
+        case TOKEN_STAR:          emitByte(OP_MULTIPLY); break;
+        case TOKEN_SLASH:         emitByte(OP_DIVIDE); break;
+        default: return;
+    }
+}
+
+static void literal(){
+    switch(parser.previous.type){
+        case TOKEN_FALSE: emitByte(OP_FALSE); break;
+        case TOKEN_NIL:   emitByte(OP_NIL); break;
+        case TOKEN_TRUE:  emitByte(OP_TRUE); break;
         default: return;
     }
 }
@@ -147,7 +162,12 @@ static void grouping(){
 
 static void number(){
     double value = std::strtod(parser.previous.start, nullptr);
-    emitConstant(value);
+    emitConstant(numberVal(value));
+}
+
+static void string(){
+    emitConstant(objVal(copyString(parser.previous.start + 1,
+                                   parser.previous.length - 2)));
 }
 
 static void unary(){
@@ -156,6 +176,7 @@ static void unary(){
     parsePrecedence(PREC_UNARY);
 
     switch(operatorType){
+        case TOKEN_BANG:  emitByte(OP_NOT); break;
         case TOKEN_MINUS: emitByte(OP_NEGATE); break;
         default: return;
     }
@@ -165,7 +186,7 @@ static void parsePrecedence(Precedence precedence){
     advance();
     ParseFn prefixRule = getRule(parser.previous.type).prefix;
     if(prefixRule == nullptr){
-        error("Expect expression.");
+        error("Expected expression.");
         return;
     }
 
@@ -180,13 +201,24 @@ static void parsePrecedence(Precedence precedence){
 
 static ParseRule getRule(TokenType type){
     switch(type){
-        case TOKEN_LEFT_PAREN: return {grouping, nullptr, PREC_NONE};
-        case TOKEN_MINUS:      return {unary,    binary,  PREC_TERM};
-        case TOKEN_PLUS:       return {nullptr,  binary,  PREC_TERM};
-        case TOKEN_SLASH:      return {nullptr,  binary,  PREC_FACTOR};
-        case TOKEN_STAR:       return {nullptr,  binary,  PREC_FACTOR};
-        case TOKEN_NUMBER:     return {number,   nullptr, PREC_NONE};
-        default:               return {nullptr,  nullptr, PREC_NONE};
+        case TOKEN_BANG:          return {unary, nullptr, PREC_NONE};
+        case TOKEN_BANG_EQUAL:    return {nullptr, binary, PREC_EQUALITY};
+        case TOKEN_EQUAL_EQUAL:   return {nullptr, binary, PREC_EQUALITY};
+        case TOKEN_GREATER:       return {nullptr, binary, PREC_COMPARISON};
+        case TOKEN_GREATER_EQUAL: return {nullptr, binary, PREC_COMPARISON};
+        case TOKEN_LESS:          return {nullptr, binary, PREC_COMPARISON};
+        case TOKEN_LESS_EQUAL:    return {nullptr, binary, PREC_COMPARISON}; 
+        case TOKEN_FALSE:         return {literal, nullptr, PREC_NONE};
+        case TOKEN_LEFT_PAREN:    return {grouping, nullptr, PREC_NONE};
+        case TOKEN_MINUS:         return {unary,    binary,  PREC_TERM};
+        case TOKEN_NIL:           return {literal, nullptr, PREC_NONE};
+        case TOKEN_NUMBER:        return {number,   nullptr, PREC_NONE};
+        case TOKEN_PLUS:          return {nullptr,  binary,  PREC_TERM};
+        case TOKEN_SLASH:         return {nullptr,  binary,  PREC_FACTOR};
+        case TOKEN_STAR:          return {nullptr,  binary,  PREC_FACTOR};
+        case TOKEN_STRING:        return {string, nullptr, PREC_NONE};
+        case TOKEN_TRUE:          return {literal, nullptr, PREC_NONE};
+        default:                  return {nullptr,  nullptr, PREC_NONE};
     }
 }
 
