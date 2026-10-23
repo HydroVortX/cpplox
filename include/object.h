@@ -15,6 +15,7 @@ struct Obj {
 struct ObjString : Obj {
     int length;
     char* chars;
+    std::uint32_t hash;
 };
 
 ObjString* takeString(char* chars, int length);

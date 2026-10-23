@@ -2,6 +2,7 @@
 #include <format>
 #include <cstdarg>
 #include <cstring>
+#include <functional>
 
 #include "include/common.h"
 #include "include/vm.h"
@@ -34,13 +35,15 @@ void initVM(){
 
 void freeVM(){
     freeObjects();
+    freeArray(vm.stack, vm.stackCapacity);
+    vm = VM{};
 }
 
 void push(Value value){
     if(vm.stackCapacity < vm.stackCount + 1){
         int oldcapacity = vm.stackCapacity;
-        vm.stackCapacity = GROW_CAPACITY(oldcapacity);
-        vm.stack = GROW_ARRAY(Value, vm.stack, oldcapacity, vm.stackCapacity);
+        vm.stackCapacity = growCapacity(oldcapacity);
+        vm.stack = growArray(vm.stack, oldcapacity, vm.stackCapacity);
         vm.stackTop = vm.stack + vm.stackCount;
     }
     *vm.stackTop = value;
@@ -67,7 +70,7 @@ static void concatenate(){
     ObjString* a = asString(pop());
 
     int length = a->length + b->length;
-    char* chars = ALLOCATE(char, length + 1);
+    char* chars = allocate<char>(length + 1);
     std::memcpy(chars, a->chars, a->length);
     std::memcpy(chars + a->length, b->chars, b->length);
     chars[length] = '\0';
@@ -76,21 +79,23 @@ static void concatenate(){
     push(objVal(result));
 }
 
+template <typename MakeValue, typename Op>
+static bool binaryOp(MakeValue makeValue, Op op){
+    if(!isNumber(peek(0)) || !isNumber(peek(1))){
+        runtimeError("Operands must be numbers.");
+        return false;
+    }
+    double b = asNumber(pop());
+    double a = asNumber(pop());
+    push(makeValue(op(a, b)));
+    return true;
+}
+
 static interpretResult run(){
     #define READ_BYTE() (*vm.ip++)
     #define READ_24BIT() (vm.ip += 3, ((vm.ip[-3]) << 16| (vm.ip[-2]) << 8 | vm.ip[-1]))
     #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
     #define READ_CONSTANT_LONG() (vm.chunk->constants.values[READ_24BIT()])
-    #define BINARY_OP(ValueType, op) \
-        do { \
-            if(!isNumber(peek(0)) || !isNumber(peek(1))){ \
-                runtimeError("Operands must be numbers."); \
-                return INTERPRET_RUNTIME_ERROR; \
-            } \
-            double b = asNumber(pop()); \
-            double a = asNumber(pop()); \
-            push(ValueType(a op b)); \
-        } while(false)
 
         for(;;){
             #ifdef DEBUG_TRACE_EXECUTION
@@ -134,18 +139,18 @@ static interpretResult run(){
                     break;
                 }
                 case OP_GREATER: {
-                    BINARY_OP(boolVal, >); 
+                    if(!binaryOp(boolVal, std::greater<>{})) return INTERPRET_RUNTIME_ERROR; 
                     break;
                 }
                 case OP_LESS: {
-                    BINARY_OP(boolVal, <);
+                    if(!binaryOp(boolVal, std::less<>{})) return INTERPRET_RUNTIME_ERROR;
                     break;
                 }
                 case OP_ADD: {
                     if(isString(peek(0)) && isString(peek(1))){
                         concatenate();
                     } else if(isNumber(peek(0)) && isNumber(peek(1))){
-                        BINARY_OP(numberVal, +);
+                        if(!binaryOp(numberVal, std::plus<>{})) return INTERPRET_RUNTIME_ERROR;
                     } else{
                         runtimeError("Operands must be two numbers or two strings.");
                         return INTERPRET_RUNTIME_ERROR;
@@ -153,15 +158,15 @@ static interpretResult run(){
                     break;
                 }
                 case OP_SUBTRACT: {
-                    BINARY_OP(numberVal, -);
+                    if(!binaryOp(numberVal, std::minus<>{})) return INTERPRET_RUNTIME_ERROR;
                     break;
                 }
                 case OP_MULTIPLY: {
-                    BINARY_OP(numberVal, *);
+                    if(!binaryOp(numberVal, std::multiplies<>{})) return INTERPRET_RUNTIME_ERROR;
                     break;
                 }
                 case OP_DIVIDE: {
-                    BINARY_OP(numberVal, /);
+                    if(!binaryOp(numberVal, std::divides<>{})) return INTERPRET_RUNTIME_ERROR;
                     break;
                 }
                 case OP_NOT:
@@ -181,7 +186,7 @@ static interpretResult run(){
                     return INTERPRET_OK;
                 }
                 default: {
-                    std::cout << "Unknown opcode " << instruction << "\n";
+                    std::cerr << "Unknown opcode " << static_cast<int>(instruction) << "\n";
                     return INTERPRET_RUNTIME_ERROR;
                 }
             }
@@ -191,7 +196,6 @@ static interpretResult run(){
     #undef READ_24BIT
     #undef READ_CONSTANT
     #undef READ_CONSTANT_LONG
-    #undef BINARY_OP
 }
 
 interpretResult interpret(const char* source){

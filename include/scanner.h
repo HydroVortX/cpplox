@@ -26,10 +26,10 @@ enum TokenType {
 };
 
 struct Token {
-    TokenType type;
-    const char* start;
-    int length;
-    int line;
+    TokenType type = TOKEN_EOF;
+    const char* start = nullptr;
+    int length = 0;
+    int line = 0;
 };
 
 class Scanner {

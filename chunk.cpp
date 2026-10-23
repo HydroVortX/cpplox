@@ -14,9 +14,8 @@ void initChunk(Chunk* chunk){
 }
 
 void freeChunk(Chunk* chunk){
-    FREE_ARRAY(std::uint8_t, chunk->code, chunk->capacity);
-    // FREE_ARRAY(int, chunk->lines, chunk->capacity);
-    FREE_ARRAY(LineRLE, chunk->lines, chunk->lineCapacity);
+    freeArray(chunk->code, chunk->capacity);
+    freeArray(chunk->lines, chunk->lineCapacity);
     freeValueArray(&chunk->constants);
     initChunk(chunk);
 }
@@ -24,21 +23,19 @@ void freeChunk(Chunk* chunk){
 void writeChunk(Chunk* chunk, std::uint8_t byte, int line){
     if(chunk->capacity < chunk->count + 1){
         int oldCapacity = chunk->capacity;
-        chunk->capacity = GROW_CAPACITY(oldCapacity);
-        chunk->code = GROW_ARRAY(std::uint8_t, chunk->code, oldCapacity, chunk->capacity);
-        // chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
+        chunk->capacity = growCapacity(oldCapacity);
+        chunk->code = growArray(chunk->code, oldCapacity, chunk->capacity);
     }
 
     chunk->code[chunk->count] = byte;
-    // chunk->lines[chunk->count] = line;
     chunk->count++;
 
     if(chunk->lineCount == 0 || chunk->lines[chunk->lineCount - 1].lineNumber != line){
         int oldLineCapacity = chunk->lineCapacity;
 
         if(chunk->lineCapacity < chunk->lineCount + 1){
-            chunk->lineCapacity = GROW_CAPACITY(oldLineCapacity);
-            chunk->lines = GROW_ARRAY(LineRLE, chunk->lines, oldLineCapacity, chunk->lineCapacity);
+            chunk->lineCapacity = growCapacity(oldLineCapacity);
+            chunk->lines = growArray(chunk->lines, oldLineCapacity, chunk->lineCapacity);
         }
         chunk->lines[chunk->lineCount].lineNumber = line;
         chunk->lines[chunk->lineCount].count = 1;
@@ -63,9 +60,9 @@ void writeConstant(Chunk* chunk, Value value, int line){
     } else {
         // add 24 bit constant
         writeChunk(chunk, OP_CONSTANT_LONG, line); // operator
-        writeChunk(chunk, (index >> 16) & 0xff, line); // high byte
-        writeChunk(chunk, (index >> 8) & 0xff, line); // mid byte
-        writeChunk(chunk, index &0xff, line); // low byte
+        writeChunk(chunk, static_cast<std::uint8_t>((index >> 16) & 0xff), line); // high byte
+        writeChunk(chunk, static_cast<std::uint8_t>((index >> 8) & 0xff), line); // mid byte
+        writeChunk(chunk, static_cast<std::uint8_t>(index &0xff), line); // low byte
     }
 }
 

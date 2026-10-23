@@ -32,11 +32,6 @@ static char* readFile(const char* path){
     file.seekg(0, file.beg);
 
     char* buffer = new char[fileSize + 1];
-    if(buffer == nullptr){
-        std::cerr << "Not enough memory to read \"" << path << "\".\n";
-        delete[] buffer;
-        std::exit(74);
-    }
 
     file.read(buffer, fileSize);
     if(static_cast<std::size_t>(file.gcount()) < fileSize){

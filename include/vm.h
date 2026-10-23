@@ -2,16 +2,14 @@
 
 #include "chunk.h"
 
-#define STACK_MAX 256
-
 struct VM {
-    Chunk* chunk;
-    std::uint8_t* ip;
-    int stackCapacity;
-    int stackCount;
-    Value* stack;
-    Value* stackTop;
-    Obj* objects;
+    Chunk* chunk = nullptr;
+    std::uint8_t* ip = nullptr;
+    int stackCapacity = 0;
+    int stackCount = 0;;
+    Value* stack = nullptr;
+    Value* stackTop = nullptr;
+    Obj* objects = nullptr;
 };
 
 enum interpretResult {

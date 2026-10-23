@@ -22,20 +22,19 @@ enum OpCode {
 };
 
 struct LineRLE {
-    int lineNumber;
-    int count;
+    int lineNumber = 0;
+    int count = 0;
 };
 
-struct Chunk
-{
-    int count;
-    int capacity;
-    std::uint8_t* code;
+struct Chunk {
+    int count = 0;
+    int capacity = 0;
+    std::uint8_t* code = nullptr;
     ValueArray constants;
 
-    int lineCount;
-    int lineCapacity;
-    LineRLE* lines;
+    int lineCount = 0;
+    int lineCapacity = 0;
+    LineRLE* lines = nullptr;
 };
 
 void initChunk(Chunk* chunk);

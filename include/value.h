@@ -36,9 +36,9 @@ inline bool isNumber(Value v) {return v.type == VAL_NUMBER;}
 inline bool isObj(Value v) {return v.type == VAL_OBJ;}
 
 struct ValueArray{
-    int capacity;
-    int count;
-    Value* values;
+    int capacity = 0;
+    int count = 0;
+    Value* values = nullptr;
 };
 
 bool valuesEqual(Value a, Value b);
