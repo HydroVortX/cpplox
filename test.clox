@@ -1,1 +1,14 @@
-"hello" + "a" == "hello" + "a"
+{
+    var a = "outer";
+    {
+        var a = "inner";
+
+        print(a + " variable");
+    }
+
+    print(a + " variable");
+}
+
+var a = "hell"
+var a;
+print(a);

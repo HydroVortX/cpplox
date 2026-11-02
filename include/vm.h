@@ -11,6 +11,7 @@ struct VM {
     int stackCount = 0;
     Value* stack = nullptr;
     Value* stackTop = nullptr;
+    Table globals;
     Table strings;
     Obj* objects = nullptr;
 };

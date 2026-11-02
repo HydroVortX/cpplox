@@ -37,20 +37,22 @@ int Chunk::addConstant(Value value){
     return constants_.count - 1;
 }
 
-void Chunk::writeConstant(Value value, int line){
-    int index = addConstant(value);
-
+void Chunk::writeWithIndex(OpCode shortOp, OpCode longOp, int index, int line){
     if(index < 256) {
         // add normal size constant
-        write(OP_CONSTANT, line);
+        write(shortOp, line);
         write(static_cast<std::uint8_t>(index), line);
     } else {
         // add 24 bit constant
-        write(OP_CONSTANT_LONG, line); // operator
+        write(longOp, line); // operator
         write(static_cast<std::uint8_t>((index >> 16) & 0xff), line); // high byte
         write(static_cast<std::uint8_t>((index >> 8) & 0xff), line); // mid byte
         write(static_cast<std::uint8_t>(index &0xff), line); // low byte
     }
+}
+
+void Chunk::writeConstant(Value value, int line){
+    writeWithIndex(OP_CONSTANT, OP_CONSTANT_LONG, addConstant(value), line);
 }
 
 int Chunk::getLine(int instructionOffset) const{

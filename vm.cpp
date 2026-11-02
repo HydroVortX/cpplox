@@ -35,6 +35,7 @@ void initVM(){
 
 void freeVM(){
     vm.strings.clear();
+    vm.globals.clear();
     freeObjects();
     freeArray(vm.stack, vm.stackCapacity);
     vm.stack = nullptr;
@@ -137,6 +138,50 @@ static interpretResult run(){
                     push(boolVal(false));
                     break;
                 }
+                case OP_POP: {
+                    pop(); 
+                    break;
+                }
+                case OP_GET_LOCAL:
+                case OP_GET_LOCAL_LONG: {
+                    int slot = instruction == OP_GET_LOCAL ? READ_BYTE() : READ_24BIT();
+                    push(vm.stack[slot]);
+                    break;
+                }
+                case OP_SET_LOCAL:
+                case OP_SET_LOCAL_LONG: {
+                    int slot = instruction == OP_SET_LOCAL ? READ_BYTE() : READ_24BIT();
+                    vm.stack[slot] = peek(0);
+                    break;
+                }
+                case OP_GET_GLOBAL:
+                case OP_GET_GLOBAL_LONG: {
+                    ObjString* name = asString(instruction == OP_GET_GLOBAL ? READ_CONSTANT() : READ_CONSTANT_LONG());
+                    Value value;
+                    if(!vm.globals.get(name, &value)){
+                        runtimeError("Undefined variable {}.", name->chars);
+                        return INTERPRET_RUNTIME_ERROR;
+                    }
+                    push(value);
+                    break;
+                }
+                case OP_DEFINE_GLOBAL:
+                case OP_DEFINE_GLOBAL_LONG: {
+                    ObjString* name = asString(instruction == OP_DEFINE_GLOBAL ? READ_CONSTANT() : READ_CONSTANT_LONG());
+                    vm.globals.set(name, peek(0));
+                    pop();
+                    break;
+                }
+                case OP_SET_GLOBAL:
+                case OP_SET_GLOBAL_LONG: {
+                    ObjString* name = asString(instruction == OP_SET_GLOBAL ? READ_CONSTANT(): READ_CONSTANT_LONG());
+                    if(vm.globals.set(name, peek(0))){
+                        vm.globals.remove(name);
+                        runtimeError("Undefined variable {}", name->chars);
+                        return INTERPRET_RUNTIME_ERROR;
+                    }
+                    break;
+                }
                 case OP_EQUAL: {
                     Value b = pop();
                     Value a = pop();
@@ -185,9 +230,12 @@ static interpretResult run(){
                     push(numberVal(-asNumber(pop())));
                     break;
                 }
-                case OP_RETURN: {
+                case OP_PRINT: {
                     printValue(pop());
                     std::cout << "\n";
+                    break;
+                }
+                case OP_RETURN: {
                     return INTERPRET_OK;
                 }
                 default: {

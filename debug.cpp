@@ -10,6 +10,18 @@ static int simpleInstruction(const char* name, int offset){
     return offset + 1;
 }
 
+static int byteInstruction(const char* name, const Chunk& chunk, int offset){
+    std::uint8_t slot = chunk.code()[offset + 1];
+    std::cout << std::format("{:<16} {:4}\n", name, slot);
+    return offset + 2;
+}
+
+static int byteLongInstruction(const char* name, const Chunk& chunk, int offset){
+    int slot = (chunk.code()[offset + 1] << 16) | (chunk.code()[offset + 2] << 8) | (chunk.code()[offset + 3]);
+    std::cout << std::format("{:<16} {:4}\n", name, slot);
+    return offset + 4;
+}
+
 static int constantInstruction(const char* name, const Chunk& chunk, int offset){
     std::uint8_t constant = chunk.code()[offset + 1];
     std::cout << std::format("{:<16} {:4} '", name, constant);
@@ -74,6 +86,30 @@ int disassembleInstruction(const Chunk& chunk, int offset){
             return simpleInstruction("OP_NOT", offset);
         case OP_NEGATE:
             return simpleInstruction("OP_NEGATE", offset);
+        case OP_PRINT:
+            return simpleInstruction("OP_PRINT", offset);
+        case OP_POP:
+            return simpleInstruction("OP_POP", offset);
+        case OP_GET_GLOBAL:
+            return constantInstruction("OP_GET_GLOBAL", chunk, offset);
+        case OP_GET_GLOBAL_LONG:
+            return constantLongInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
+        case OP_DEFINE_GLOBAL:
+            return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
+        case OP_DEFINE_GLOBAL_LONG:
+            return constantLongInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
+        case OP_SET_GLOBAL:
+            return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+        case OP_SET_GLOBAL_LONG:
+            return constantLongInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
+        case OP_GET_LOCAL:
+            return byteInstruction("OP_GET_LOCAL", chunk, offset);
+        case OP_GET_LOCAL_LONG:
+            return byteLongInstruction("OP_GET_LOCAL_LONG", chunk, offset);
+        case OP_SET_LOCAL:
+            return byteInstruction("OP_SET_LOCAL", chunk, offset);
+        case OP_SET_LOCAL_LONG:
+            return byteLongInstruction("OP_SET_LOCAL_LONG", chunk, offset);
         case OP_RETURN:
             return simpleInstruction("OP_RETURN", offset);
         default:

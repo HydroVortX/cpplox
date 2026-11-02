@@ -19,6 +19,18 @@ enum OpCode {
     OP_MULTIPLY,
     OP_DIVIDE,
     OP_RETURN,
+    OP_PRINT,
+    OP_POP,
+    OP_DEFINE_GLOBAL,
+    OP_DEFINE_GLOBAL_LONG,
+    OP_GET_GLOBAL,
+    OP_GET_GLOBAL_LONG,
+    OP_SET_GLOBAL,
+    OP_SET_GLOBAL_LONG,
+    OP_GET_LOCAL,
+    OP_GET_LOCAL_LONG,
+    OP_SET_LOCAL,
+    OP_SET_LOCAL_LONG,
 };
 
 struct LineRLE {
@@ -34,6 +46,7 @@ class Chunk {
         Chunk& operator=(const Chunk&) = delete;
 
         void write(std::uint8_t byte, int line);
+        void writeWithIndex(OpCode shortOp, OpCode longOp, int index, int line);
         void writeConstant(Value value, int line);
         int addConstant(Value value);
         int getLine(int instructionOffset) const;
