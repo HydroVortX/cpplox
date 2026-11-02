@@ -1,14 +1,17 @@
 #pragma once
 
 #include "chunk.h"
+#include "table.h"
+#include "value.h"
 
 struct VM {
     Chunk* chunk = nullptr;
-    std::uint8_t* ip = nullptr;
+    const std::uint8_t* ip = nullptr;
     int stackCapacity = 0;
-    int stackCount = 0;;
+    int stackCount = 0;
     Value* stack = nullptr;
     Value* stackTop = nullptr;
+    Table strings;
     Obj* objects = nullptr;
 };
 

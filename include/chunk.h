@@ -26,20 +26,29 @@ struct LineRLE {
     int count = 0;
 };
 
-struct Chunk {
-    int count = 0;
-    int capacity = 0;
-    std::uint8_t* code = nullptr;
-    ValueArray constants;
+class Chunk {
+    public:
+        Chunk() = default;
+        ~Chunk();
+        Chunk(const Chunk&) = delete;
+        Chunk& operator=(const Chunk&) = delete;
 
-    int lineCount = 0;
-    int lineCapacity = 0;
-    LineRLE* lines = nullptr;
+        void write(std::uint8_t byte, int line);
+        void writeConstant(Value value, int line);
+        int addConstant(Value value);
+        int getLine(int instructionOffset) const;
+        int count() const {return count_;}
+        const std::uint8_t* code() const {return code_;}
+        int constantCount() const {return constants_.count;}
+        Value constantAt(int index) const {return constants_.values[index];}
+    
+    private:
+        int count_ = 0;
+        int capacity_ = 0;
+        std::uint8_t* code_ = nullptr;
+        ValueArray constants_;
+
+        int lineCount_ = 0;
+        int lineCapacity_ = 0;
+        LineRLE* lines_ = nullptr;
 };
-
-void initChunk(Chunk* chunk);
-void freeChunk(Chunk* chunk);
-void writeChunk(Chunk* chunk, std::uint8_t byte, int line);
-void writeConstant(Chunk* chunk, Value value, int line);
-int addConstant (Chunk* chunk, Value value);
-int getLine(Chunk* chunk, int instructionOffset);

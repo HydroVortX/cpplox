@@ -48,13 +48,7 @@ bool valuesEqual(Value a, Value b){
         case VAL_BOOL:   return asBool(a) == asBool(b);
         case VAL_NIL:    return true;
         case VAL_NUMBER: return asNumber(a) == asNumber(b);
-        case VAL_OBJ: {
-            ObjString* aString = asString(a);
-            ObjString* bstring = asString(b);
-            return aString->length == bstring->length && 
-                std::memcmp(aString->chars, bstring->chars,
-                            aString->length) == 0;
-        }
+        case VAL_OBJ:    return asObj(a) == asObj(b);
         default:         return false;
     }
 }

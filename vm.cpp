@@ -21,9 +21,9 @@ static void resetStack(){
 template <typename... Args>
 static void runtimeError(std::format_string<Args...> fmt, Args&&... args){
     std::cerr << std::format(fmt, std::forward<Args>(args)...) << '\n';
-    std::size_t instruction = static_cast<std::size_t>(vm.ip - vm.chunk->code) - 1;
+    std::size_t instruction = static_cast<std::size_t>(vm.ip - vm.chunk->code()) - 1;
 
-    int line = getLine(vm.chunk, static_cast<int>(instruction));
+    int line = vm.chunk->getLine(static_cast<int>(instruction));
     std::cerr << std::format("[line {}] in script\n", line);
     resetStack();
 }
@@ -34,9 +34,14 @@ void initVM(){
 }
 
 void freeVM(){
+    vm.strings.clear();
     freeObjects();
     freeArray(vm.stack, vm.stackCapacity);
-    vm = VM{};
+    vm.stack = nullptr;
+    vm.stackTop = nullptr;
+    vm.stackCapacity = 0;
+    vm.stackCount = 0;
+    vm.objects = nullptr;
 }
 
 void push(Value value){
@@ -94,8 +99,8 @@ static bool binaryOp(MakeValue makeValue, Op op){
 static interpretResult run(){
     #define READ_BYTE() (*vm.ip++)
     #define READ_24BIT() (vm.ip += 3, ((vm.ip[-3]) << 16| (vm.ip[-2]) << 8 | vm.ip[-1]))
-    #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
-    #define READ_CONSTANT_LONG() (vm.chunk->constants.values[READ_24BIT()])
+    #define READ_CONSTANT() (vm.chunk->constantAt(READ_BYTE()))
+    #define READ_CONSTANT_LONG() (vm.chunk->constantAt(READ_24BIT()))
 
         for(;;){
             #ifdef DEBUG_TRACE_EXECUTION
@@ -106,7 +111,7 @@ static interpretResult run(){
                     std::cout << "]";
                 }
                 std::cout << "\n";
-                disassembleInstruction(vm.chunk, static_cast<int>(vm.ip - vm.chunk->code));
+                disassembleInstruction(*vm.chunk, static_cast<int>(vm.ip - vm.chunk->code()));
             #endif
             std::uint8_t instruction;
             switch (instruction = READ_BYTE()) {
@@ -200,18 +205,13 @@ static interpretResult run(){
 
 interpretResult interpret(const char* source){
     Chunk chunk;
-    initChunk(&chunk);
 
     if(!compile(source, &chunk)) {
-        freeChunk(&chunk);
         return INTERPRET_COMPILE_ERROR;
     }
 
     vm.chunk = &chunk;
-    vm.ip = vm.chunk->code;
+    vm.ip = vm.chunk->code();
 
-    interpretResult result = run();
-
-    freeChunk(&chunk);
-    return result;
+    return run();
 }

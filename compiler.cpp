@@ -93,7 +93,7 @@ static void consume(TokenType type, const char* message){
 }
 
 static void emitByte(std::uint8_t byte){
-    writeChunk(currentChunk(), byte, parser.previous.line);
+    currentChunk()->write(byte, parser.previous.line);
 }
 
 static void emitBytes(std::uint8_t byte1, std::uint8_t byte2){
@@ -106,18 +106,18 @@ static void emitReturn(){
 }
 
 static void emitConstant(Value value){
-    if(currentChunk()->constants.count >= (1 << 24)){
+    if(currentChunk()->constantCount() >= (1 << 24)){
         error("Too many constants in one chunk.");
         return;
     }
-    writeConstant(currentChunk(), value, parser.previous.line);
+    currentChunk()->writeConstant(value, parser.previous.line);
 }
 
 static void endCompiler(){
     emitReturn();
 #ifdef DEBUG_PRINT_CODE
     if(!parser.hadError){
-        disassembleChunk(currentChunk(), "code");
+        disassembleChunk(*currentChunk(), "code");
     }
 #endif
 }
@@ -157,7 +157,7 @@ static void literal(){
 
 static void grouping(){
     expression();
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression");
+    consume(TOKEN_RIGHT_PAREN, "Expected ')' after expression.");
 }
 
 static void number(){
@@ -231,8 +231,7 @@ bool compile(const char* source, Chunk* chunk){
     scanner = &s;
     compilingChunk = chunk;
 
-    parser.hadError = false;
-    parser.panicMode = false;
+    parser = Parser{};
 
     advance();
     expression();

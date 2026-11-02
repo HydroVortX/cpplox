@@ -4,6 +4,7 @@
 #include "include/common.h"
 #include "include/memory.h"
 #include "include/object.h"
+#include "include/table.h"
 #include "include/value.h"
 #include "include/vm.h"
 
@@ -21,6 +22,7 @@ static ObjString* allocateString(char* chars, int length, std::uint32_t hash){
     string->length = length;
     string->chars = chars;
     string->hash = hash;
+    vm.strings.set(string, nilVal());
     return string;
 }
 
@@ -35,11 +37,20 @@ static std::uint32_t hashString(const char* key, int length){
 
 ObjString* takeString(char* chars, int length){
     std::uint32_t hash = hashString(chars, length);
+    ObjString* interned = vm.strings.findString(chars, length, hash);
+
+    if(interned != nullptr){
+        freeArray<char>(chars, length + 1);
+        return interned;
+    }
     return allocateString(chars, length, hash);
 }
 
 ObjString* copyString(const char* chars, int length){
     std::uint32_t hash = hashString(chars, length);
+    ObjString* interned = vm.strings.findString(chars, length, hash);
+    if(interned != nullptr) return interned;
+
     char* heapChars = allocate<char>(length + 1);
     std::memcpy(heapChars, chars, length);
     heapChars[length] = '\0';

@@ -1,77 +1,64 @@
 #include "include/chunk.h"
 #include "include/memory.h"
 
-void initChunk(Chunk* chunk){
-    chunk->count = 0;
-    chunk->capacity = 0;
-    chunk->code = nullptr;
-    initValueArray(&chunk->constants);
-
-    // RLE encoded line count initialize
-    chunk->lineCapacity = 0;
-    chunk->lineCount = 0;
-    chunk->lines = nullptr;
+Chunk::~Chunk(){
+    freeArray<std::uint8_t>(code_, capacity_);
+    freeArray<LineRLE>(lines_, lineCapacity_);
+    freeValueArray(&constants_);
 }
 
-void freeChunk(Chunk* chunk){
-    freeArray(chunk->code, chunk->capacity);
-    freeArray(chunk->lines, chunk->lineCapacity);
-    freeValueArray(&chunk->constants);
-    initChunk(chunk);
-}
-
-void writeChunk(Chunk* chunk, std::uint8_t byte, int line){
-    if(chunk->capacity < chunk->count + 1){
-        int oldCapacity = chunk->capacity;
-        chunk->capacity = growCapacity(oldCapacity);
-        chunk->code = growArray(chunk->code, oldCapacity, chunk->capacity);
+void Chunk::write(std::uint8_t byte, int line){
+    if(capacity_ < count_ + 1){
+        int oldCapacity = capacity_;
+        capacity_ = growCapacity(oldCapacity);
+        code_ = growArray(code_, oldCapacity, capacity_);
     }
 
-    chunk->code[chunk->count] = byte;
-    chunk->count++;
+    code_[count_] = byte;
+    count_++;
 
-    if(chunk->lineCount == 0 || chunk->lines[chunk->lineCount - 1].lineNumber != line){
-        int oldLineCapacity = chunk->lineCapacity;
+    if(lineCount_ == 0 || lines_[lineCount_ - 1].lineNumber != line){
+        int oldLineCapacity = lineCapacity_;
 
-        if(chunk->lineCapacity < chunk->lineCount + 1){
-            chunk->lineCapacity = growCapacity(oldLineCapacity);
-            chunk->lines = growArray(chunk->lines, oldLineCapacity, chunk->lineCapacity);
+        if(lineCapacity_ < lineCount_ + 1){
+            lineCapacity_ = growCapacity(oldLineCapacity);
+            lines_ = growArray(lines_, oldLineCapacity, lineCapacity_);
         }
-        chunk->lines[chunk->lineCount].lineNumber = line;
-        chunk->lines[chunk->lineCount].count = 1;
-        chunk->lineCount++;
+        lines_[lineCount_].lineNumber = line;
+        lines_[lineCount_].count = 1;
+        lineCount_++;
     } else {  
-        chunk->lines[chunk->lineCount - 1].count++;
+        lines_[lineCount_ - 1].count++;
     }
 }
 
-int addConstant(Chunk* chunk, Value value){
-    writeValueArray(&chunk->constants, value);
-    return chunk->constants.count - 1;
+int Chunk::addConstant(Value value){
+    writeValueArray(&constants_, value);
+    return constants_.count - 1;
 }
 
-void writeConstant(Chunk* chunk, Value value, int line){
-    int index = addConstant(chunk, value);
+void Chunk::writeConstant(Value value, int line){
+    int index = addConstant(value);
 
     if(index < 256) {
         // add normal size constant
-        writeChunk(chunk, OP_CONSTANT, line);
-        writeChunk(chunk, static_cast<std::uint8_t>(index), line);
+        write(OP_CONSTANT, line);
+        write(static_cast<std::uint8_t>(index), line);
     } else {
         // add 24 bit constant
-        writeChunk(chunk, OP_CONSTANT_LONG, line); // operator
-        writeChunk(chunk, static_cast<std::uint8_t>((index >> 16) & 0xff), line); // high byte
-        writeChunk(chunk, static_cast<std::uint8_t>((index >> 8) & 0xff), line); // mid byte
-        writeChunk(chunk, static_cast<std::uint8_t>(index &0xff), line); // low byte
+        write(OP_CONSTANT_LONG, line); // operator
+        write(static_cast<std::uint8_t>((index >> 16) & 0xff), line); // high byte
+        write(static_cast<std::uint8_t>((index >> 8) & 0xff), line); // mid byte
+        write(static_cast<std::uint8_t>(index &0xff), line); // low byte
     }
 }
 
-int getLine(Chunk* chunk, int instructionOffset){
+int Chunk::getLine(int instructionOffset) const{
     int instructionSeen = 0;
-    for(int i = 0; i < chunk->lineCount; i++){
-        instructionSeen += chunk->lines[i].count;
+    for(int i = 0; i < lineCount_; i++){
+        instructionSeen += lines_[i].count;
         if(instructionSeen > instructionOffset){
-            return chunk->lines[i].lineNumber;
+            return lines_[i].lineNumber;
         }
     }
     return -1;
