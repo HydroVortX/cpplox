@@ -22,6 +22,13 @@ static int byteLongInstruction(const char* name, const Chunk& chunk, int offset)
     return offset + 4;
 }
 
+static int jumpInstruction(const char* name, int sign, const Chunk& chunk, int offset){
+    std::uint16_t jump = static_cast<std::uint16_t>(chunk.code()[offset + 1] << 8);
+    jump |= chunk.code()[offset + 2];
+    std::cout << std::format("{:<16} {} -> {}\n", name, offset, offset + 3 + sign * jump);
+    return offset + 3;
+}
+
 static int constantInstruction(const char* name, const Chunk& chunk, int offset){
     std::uint8_t constant = chunk.code()[offset + 1];
     std::cout << std::format("{:<16} {:4} '", name, constant);
@@ -110,6 +117,10 @@ int disassembleInstruction(const Chunk& chunk, int offset){
             return byteInstruction("OP_SET_LOCAL", chunk, offset);
         case OP_SET_LOCAL_LONG:
             return byteLongInstruction("OP_SET_LOCAL_LONG", chunk, offset);
+        case OP_JUMP:
+            return jumpInstruction("OP_JUMP", 1, chunk, offset);
+        case OP_JUMP_IF_FALSE:
+            return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
         case OP_RETURN:
             return simpleInstruction("OP_RETURN", offset);
         default:

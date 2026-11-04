@@ -31,6 +31,8 @@ enum OpCode {
     OP_GET_LOCAL_LONG,
     OP_SET_LOCAL,
     OP_SET_LOCAL_LONG,
+    OP_JUMP_IF_FALSE,
+    OP_JUMP,
 };
 
 struct LineRLE {
@@ -51,7 +53,7 @@ class Chunk {
         int addConstant(Value value);
         int getLine(int instructionOffset) const;
         int count() const {return count_;}
-        const std::uint8_t* code() const {return code_;}
+        std::uint8_t* code() const {return code_;}
         int constantCount() const {return constants_.count;}
         Value constantAt(int index) const {return constants_.values[index];}
     

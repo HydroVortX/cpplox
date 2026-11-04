@@ -132,6 +132,13 @@ static void emitBytes(std::uint8_t byte1, std::uint8_t byte2){
     emitByte(byte2);
 }
 
+static int emitJump(std::uint8_t instruction){
+    emitByte(instruction);
+    emitByte(0xff);
+    emitByte(0xff);
+    return currentChunk()->count() - 2;
+}
+
 static void emitReturn(){
     emitByte(OP_RETURN);
 }
@@ -142,6 +149,17 @@ static void emitConstant(Value value){
         return;
     }
     currentChunk()->writeConstant(value, parser.previous.line);
+}
+
+static void patchJump(int offset){
+    int jump = currentChunk()->count() - offset - 2;
+
+    if(jump > UINT16_MAX){
+        error("Too much code to jump over");
+    }
+
+    currentChunk()->code()[offset] = (jump >> 8) & 0xff;
+    currentChunk()->code()[offset + 1] = jump & 0xff;
 }
 
 static void initCompiler(Compiler* compiler){
@@ -211,6 +229,17 @@ static void grouping(bool canAssign){
 static void number(bool canAssign){
     double value = std::strtod(parser.previous.start, nullptr);
     emitConstant(numberVal(value));
+}
+
+static void or_(bool canAssign){
+    int elseJump = emitJump(OP_JUMP_IF_FALSE);
+    int endJump = emitJump(OP_JUMP);
+
+    patchJump(elseJump);
+    emitByte(OP_POP);
+
+    parsePrecedence(PREC_OR);
+    patchJump(endJump);
 }
 
 static void string(bool canAssign){
@@ -359,6 +388,15 @@ static void defineVariable(int global){
     currentChunk()->writeWithIndex(OP_DEFINE_GLOBAL, OP_DEFINE_GLOBAL_LONG, global, parser.previous.line);
 }
 
+static void and_(bool canAssign){
+    int endJump = emitJump(OP_JUMP_IF_FALSE);
+
+    emitByte(OP_POP);
+    parsePrecedence(PREC_AND);
+    
+    patchJump(endJump);
+}
+
 static ParseRule getRule(TokenType type){
     switch(type){
         case TOKEN_BANG:          return {unary, nullptr, PREC_NONE};
@@ -379,6 +417,8 @@ static ParseRule getRule(TokenType type){
         case TOKEN_STRING:        return {string, nullptr, PREC_NONE};
         case TOKEN_TRUE:          return {literal, nullptr, PREC_NONE};
         case TOKEN_IDENTIFIER:    return {variable, nullptr, PREC_NONE};
+        case TOKEN_AND:           return {nullptr, and_, PREC_AND};
+        case TOKEN_OR:            return {nullptr, or_, PREC_OR};
         default:                  return {nullptr,  nullptr, PREC_NONE};
     }
 }
@@ -415,6 +455,24 @@ static void expressionStatement(){
     emitByte(OP_POP);
 }
 
+static void ifStatement(){
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if.'");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+    int thenJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+    statement();
+
+    int elseJump(OP_JUMP);
+
+    patchJump(thenJump);
+    emitByte(OP_POP);
+
+    if(match(TOKEN_ELSE)) statement();
+    patchJump(elseJump);
+}
+
 static void printStatement(){
     consume(TOKEN_LEFT_PAREN, "Expected '(' after print.");
     expression();
@@ -449,7 +507,9 @@ static void synchronize(){
 static void statement(){
     if(match(TOKEN_PRINT)){
         printStatement();
-    } else if(match(TOKEN_LEFT_BRACE)){
+    } else if(match(TOKEN_IF)){
+        ifStatement();
+    }else if(match(TOKEN_LEFT_BRACE)){
         beginScope();
         block();
         endScope();

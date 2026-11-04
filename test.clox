@@ -1,14 +1,8 @@
-{
-    var a = "outer";
-    {
-        var a = "inner";
+var a = 3;
+var b = 2;
 
-        print(a + " variable");
-    }
-
-    print(a + " variable");
+if(a > b) {
+    print(a);
+} else {
+    print(b);
 }
-
-var a = "hell"
-var a;
-print(a);

@@ -102,6 +102,7 @@ static interpretResult run(){
     #define READ_24BIT() (vm.ip += 3, ((vm.ip[-3]) << 16| (vm.ip[-2]) << 8 | vm.ip[-1]))
     #define READ_CONSTANT() (vm.chunk->constantAt(READ_BYTE()))
     #define READ_CONSTANT_LONG() (vm.chunk->constantAt(READ_24BIT()))
+    #define READ_SHORT() (vm.ip += 2, static_cast<std::uint16_t>((vm.ip[-2] << 8 | vm.ip[-1])))
 
         for(;;){
             #ifdef DEBUG_TRACE_EXECUTION
@@ -235,6 +236,16 @@ static interpretResult run(){
                     std::cout << "\n";
                     break;
                 }
+                case OP_JUMP: {
+                    std::uint16_t offset = READ_SHORT();
+                    vm.ip += offset;
+                    break;
+                }
+                case OP_JUMP_IF_FALSE: {
+                    std::uint16_t offset = READ_SHORT();
+                    if(isFalsey(peek(0))) vm.ip += offset;
+                    break;
+                }
                 case OP_RETURN: {
                     return INTERPRET_OK;
                 }
@@ -249,6 +260,7 @@ static interpretResult run(){
     #undef READ_24BIT
     #undef READ_CONSTANT
     #undef READ_CONSTANT_LONG
+    #undef READ_SHORT
 }
 
 interpretResult interpret(const char* source){
