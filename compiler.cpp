@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string_view>
 #include <cstring>
+#include <vector>
 
 #include "include/common.h"
 #include "include/compiler.h"
@@ -45,10 +46,19 @@ struct Local {
     int depth = 0;
 };
 
+struct JumpContext {
+    JumpContext* enclosing = nullptr;
+    bool isLoop = false;
+    int scopeDepth = 0;
+    int continueTarget = -1;
+    std::vector<int> breakJumps;
+};
+
 struct Compiler {
     Local locals[UINT16_COUNT];
     int localCount = 0;
     int scopeDepth = 0;
+    JumpContext* innermost = nullptr;
 };
 
 static Parser parser;
@@ -174,6 +184,7 @@ static void patchJump(int offset){
 static void initCompiler(Compiler* compiler){
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
+    compiler->innermost = nullptr;
     current = compiler;
 }
 
@@ -199,6 +210,25 @@ static void endScope(){
         emitByte(OP_POP);
         current->localCount--;
     }
+}
+
+static void discardLocals(int depth){
+    for(int i = current->localCount - 1; i >= 0 && current->locals[i].depth > depth; i--){
+        emitByte(OP_POP);
+    }
+}
+
+static void beginJumpContext(JumpContext* context, bool isLoop, int ContinueTarget){
+    context->enclosing = current->innermost;
+    context->isLoop = isLoop;
+    context->scopeDepth = current->scopeDepth;
+    context->continueTarget = ContinueTarget;
+    current->innermost = context;
+}
+
+static void endJumpContext(JumpContext* context){
+    for(int jump : context->breakJumps) patchJump(jump);
+    current->innermost = context->enclosing;
 }
 
 static void binary(bool canAssign){
@@ -464,10 +494,89 @@ static void expressionStatement(){
     emitByte(OP_POP);
 }
 
+static void breakStatement(){
+    JumpContext* target = current->innermost;
+    if(target == nullptr){
+        error("Can't use 'break' outside of a loop or switch.");
+    } else {
+        discardLocals(target->scopeDepth);
+        target->breakJumps.push_back(emitJump(OP_JUMP));
+    }
+    consume(TOKEN_SEMICOLON, "Expected ';' after 'break'.");
+}
+
+static void continueStatement(){
+    JumpContext* target = current->innermost;
+    while(target != nullptr && !target->isLoop) target = target->enclosing;
+
+    if(target == nullptr){
+        error("Can't use 'continue' outside of loop.");
+    } else {
+        discardLocals(target->scopeDepth);
+        emitLoop(target->continueTarget);
+    }
+    consume(TOKEN_SEMICOLON, "Expected ';' after 'continue'.");
+}
+
+static void switchClauseBody(){
+    beginScope();
+    while(!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
+          !check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)){
+        declaration();
+    }
+    endScope(); 
+}
+
 static void switchStatement(){
-    consume(TOKEN_LEFT_PAREN, "Expected '(' after 'switch.");
+    beginScope();
+    consume(TOKEN_LEFT_PAREN, "Expected '(' after 'switch'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expected ')' after switch value.");
     consume(TOKEN_LEFT_BRACE, "Expected '{'");
     
+    Token hidden;
+    hidden.type = TOKEN_IDENTIFIER;
+    hidden.start = "";
+    hidden.length = 0;
+    hidden.line = parser.previous.line;
+    addLocal(hidden);
+    markInitialized();
+
+    int valueSlot = current->localCount - 1;
+    bool seenDefault = false;
+
+    JumpContext context;
+    beginJumpContext(&context, false, -1);
+
+    while(!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)){
+        if(match(TOKEN_CASE)){
+            if(seenDefault) error("Can't have 'case' after 'default clause.");
+            currentChunk()->writeWithIndex(OP_GET_LOCAL, OP_GET_LOCAL_LONG, valueSlot, parser.previous.line);
+            expression();
+            consume(TOKEN_COLON, "Expected ':' after case value.");
+            emitByte(OP_EQUAL);
+
+            int nextCase = emitJump(OP_JUMP_IF_FALSE);
+            emitByte(OP_POP);
+            switchClauseBody();
+            context.breakJumps.push_back(emitJump(OP_JUMP));
+
+            patchJump(nextCase);
+            emitByte(OP_POP);
+        }else if(match(TOKEN_DEFAULT)){
+            if(seenDefault) error("Can't have more than one 'default' clause.");
+            seenDefault = true;
+            consume(TOKEN_COLON, "Expected ': after 'default'.");
+            switchClauseBody();
+        } else {
+            errorAtCurrent("Expected 'case' or 'default' inside switch.");
+            break;
+        }
+    }
+
+    consume(TOKEN_RIGHT_BRACE, "Expected '} after switch cases.");
+    endJumpContext(&context);
+    endScope();
 }
 
 static void forStatement(){
@@ -503,6 +612,8 @@ static void forStatement(){
         patchJump(bodyJump);
     }
 
+    JumpContext context;
+    beginJumpContext(&context, true, loopStart);
     statement();
     emitLoop(loopStart);
 
@@ -511,6 +622,7 @@ static void forStatement(){
         emitByte(OP_POP);
     }
 
+    endJumpContext(&context);
     endScope();
 }
 
@@ -548,11 +660,15 @@ static void whileStatement(){
 
     int exitJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP);
+
+    JumpContext context;
+    beginJumpContext(&context, true, loopStart);
     statement();
     emitLoop(loopStart);
 
     patchJump(exitJump);
     emitByte(OP_POP);
+    endJumpContext(&context);
 }
 
 static void synchronize(){
@@ -568,6 +684,8 @@ static void synchronize(){
             case TOKEN_IF:
             case TOKEN_WHILE:
             case TOKEN_PRINT:
+            case TOKEN_CONTINUE:
+            case TOKEN_BREAK:
             case TOKEN_RETURN:
                 return;
             default:
@@ -593,6 +711,10 @@ static void statement(){
         beginScope();
         block();
         endScope();
+    } else if(match(TOKEN_BREAK)){
+        breakStatement();
+    } else if(match(TOKEN_CONTINUE)){
+        continueStatement();
     } else{
         expressionStatement();
     }

@@ -1,8 +1,12 @@
-var koen = 4;
-var b = 2;
+var a = 0;
+var b = 5;
 
-while(koen > b){
-    koen = koen - 1;
+while(a < b){
+    var c = 2;
+    a = a + 1;
+    if(a == 3){
+        break;
+    }
 }
 
-print(koen);
+print(a);
